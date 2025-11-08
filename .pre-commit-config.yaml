@@ -1,0 +1,8 @@
+repos:
+  - repo: local
+    hooks:
+      - id: commit-msg-sign
+        name: "Sign commit with 'edited by benarbidorra'"
+        entry: bash scripts/sign-commit.sh
+        language: system
+        stages: [commit]
