@@ -104,7 +104,7 @@ pipeline {
 
     post {
         always {
-            echo "🏁 Pipeline terminé"
+            echo "🏁 Pipeline terminé!!!"
         }
     }
 }
