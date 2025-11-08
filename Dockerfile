@@ -1,23 +1,12 @@
 # ---- Étape 1 : Build ----
-FROM eclipse-temurin:17 AS builder
+FROM eclipse-temurin:17-jdk AS build
 WORKDIR /app
-
-# Copier tous les fichiers du projet
 COPY . .
+RUN mvn clean package -DskipTests
 
-# Build Maven sans tests
-RUN apt-get update && apt-get install -y maven git \
-    && mvn clean package -DskipTests
-
-# ---- Étape 2 : Runtime ----
-FROM eclipse-temurin:17
+# ---- Étape 2 : Run ----
+FROM eclipse-temurin:17-jre
 WORKDIR /app
-
-# Copier le jar généré depuis l'étape builder
-COPY --from=builder /app/target/*.jar ./app.jar
-
-# Exposer le port 8080
+COPY --from=build /app/target/*.jar app.jar
 EXPOSE 8080
-
-# Lancer l'application
-ENTRYPOINT ["java","-jar","app.jar"]
+ENTRYPOINT ["java", "-jar", "app.jar"]
