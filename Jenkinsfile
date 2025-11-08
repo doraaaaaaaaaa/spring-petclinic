@@ -1,6 +1,6 @@
-pipeline {
+pipeline { 
     agent any
-//STAGES PIPELINE2223
+
     tools { 
         maven 'M2_HOME'
         jdk 'JAVA_HOME'
@@ -60,10 +60,12 @@ pipeline {
             steps {
                 echo '🔍 Scanning project with Trivy (FS)...'
                 sh '''
-                    docker run --rm -v $(pwd):/project aquasec/trivy fs \
+                    mkdir -p /tmp/trivy-cache
+                    docker run --rm -v $(pwd):/project -v /tmp/trivy-cache:/root/.cache/trivy aquasec/trivy fs \
                         --exit-code 1 \
                         --severity HIGH,CRITICAL \
                         --format json \
+                        --timeout 10m \
                         --output /project/trivy-report.json \
                         /project
                 '''
@@ -81,9 +83,11 @@ pipeline {
                 sh '''
                     docker build -t spring-petclinic:latest -f Dockerfile .
 
-                    docker run --rm aquasec/trivy image \
+                    mkdir -p /tmp/trivy-cache
+                    docker run --rm -v /tmp/trivy-cache:/root/.cache/trivy aquasec/trivy image \
                         --exit-code 1 \
                         --severity HIGH,CRITICAL \
+                        --timeout 10m \
                         spring-petclinic:latest
                 '''
             }
