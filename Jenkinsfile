@@ -1,6 +1,6 @@
 pipeline {
     agent any
-//STAGES PIPELINE
+//STAGES PIPELINE2223
     tools { 
         maven 'M2_HOME'
         jdk 'JAVA_HOME'
