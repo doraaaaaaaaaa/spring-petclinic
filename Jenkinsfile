@@ -1,6 +1,4 @@
-
-///jenkinsfile
-pipeline { 
+pipeline {
     agent any
 
     tools { 
@@ -15,6 +13,7 @@ pipeline {
     }
 
     stages {
+
         stage('Git Clone') {
             steps {
                 echo '🔄 Clonage du dépôt Spring PetClinic...'
@@ -59,7 +58,7 @@ pipeline {
 
         stage('Trivy FS Scan') {
             steps {
-                echo '🔍 Scanning project with Trivy (FS)...'
+                echo '🔍 Scanning project files with Trivy...'
                 sh '''
                     mkdir -p /tmp/trivy-cache
                     docker run --rm -v $(pwd):/project -v /tmp/trivy-cache:/root/.cache/trivy aquasec/trivy fs \
@@ -78,18 +77,15 @@ pipeline {
             }
         }
 
-        stage('Docker Build & Trivy Image Scan') {
+        stage('Build Maven') {
             steps {
-                echo '🐳 Build Docker image & scan with Trivy...'
-                sh '''
-                    docker build -t ${DOCKER_IMAGE} -f Dockerfile .
-                    mkdir -p /tmp/trivy-cache
-                    docker run --rm -v /tmp/trivy-cache:/root/.cache/trivy aquasec/trivy image \
-                        --exit-code 1 \
-                        --severity HIGH,CRITICAL \
-                        --timeout 10m \
-                        ${DOCKER_IMAGE} || true
-                '''
+                echo '⚙️ Compilation du projet Maven...'
+                sh 'mvn clean package -DskipTests'
+            }
+            post {
+                success {
+                    archiveArtifacts artifacts: 'target/*.jar', allowEmptyArchive: false
+                }
             }
         }
 
@@ -104,11 +100,26 @@ pipeline {
                 """
             }
         }
+
+        stage('Docker Build & Trivy Image Scan') {
+            steps {
+                echo '🐳 Build Docker image à partir du JAR et scan...'
+                sh '''
+                    docker build -t ${DOCKER_IMAGE} -f Dockerfile .
+                    mkdir -p /tmp/trivy-cache
+                    docker run --rm -v /tmp/trivy-cache:/root/.cache/trivy aquasec/trivy image \
+                        --exit-code 1 \
+                        --severity HIGH,CRITICAL \
+                        --timeout 10m \
+                        ${DOCKER_IMAGE} || true
+                '''
+            }
+        }
     }
 
     post {
         always {
-            echo "🏁 Pipeline terminé!!!"
+            echo "🏁 Pipeline terminé avec succès 🚀"
         }
     }
 }
