@@ -1,10 +1,9 @@
 pipeline {
     agent any
-
-    tools { 
-        maven 'M2_HOME'
-        jdk 'JAVA_HOME'
-    }
+tools {
+    maven 'M2_HOME'
+    jdk 'JAVA_HOME_25'
+}
 
     environment {
         SONAR_HOST_URL = 'http://192.168.50.4:9000'
