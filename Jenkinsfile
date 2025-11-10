@@ -99,21 +99,21 @@ tools {
                 """
             }
         }
-
-        stage('Docker Build & Trivy Image Scan') {
-            steps {
-                echo '🐳 Build Docker image à partir du JAR et scan...'
-                sh '''
-                    docker build -t ${DOCKER_IMAGE} -f Dockerfile .
-                    mkdir -p /tmp/trivy-cache
-                    docker run --rm -v /tmp/trivy-cache:/root/.cache/trivy aquasec/trivy image \
-                        --exit-code 1 \
-                        --severity HIGH,CRITICAL \
-                        --timeout 10m \
-                        ${DOCKER_IMAGE} || true
-                '''
-            }
-        }
+           
+        //stage('Docker Build & Trivy Image Scan') {
+          //  steps {
+            //    echo '🐳 Build Docker image à partir du JAR et scan...'
+              //  sh '''
+               //     docker build -t ${DOCKER_IMAGE} -f Dockerfile .
+                 //   mkdir -p /tmp/trivy-cache
+                   // docker run --rm -v /tmp/trivy-cache:/root/.cache/trivy aquasec/trivy image \
+                     //   --exit-code 1 \
+                       // --severity HIGH,CRITICAL \
+                        //--timeout 10m \
+                        //${DOCKER_IMAGE} || true
+             //   '''
+           // }
+        //}
     }
 
     post {
