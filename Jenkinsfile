@@ -10,7 +10,7 @@ pipeline {
         SONAR_HOST_URL = 'http://192.168.50.4:9000'
         SONAR_AUTH_TOKEN = credentials('sonar')  // token stocké dans Jenkins credentials
     }
-
+/////////////////////////
     stages {
 
         stage('Git Clone') {
@@ -24,9 +24,6 @@ pipeline {
             steps {
                 echo '🔒 Running Gitleaks Secret Scan...'
                 sh '''
-                    # Supprimer l’ancien fichier de rapport pour éviter les problèmes de permissions
-                    rm -f gitleaks-report.json || true
-
                     echo "📁 Contenu du projet :"
                     ls -la
                     echo "🚨 Début scan Gitleaks"
