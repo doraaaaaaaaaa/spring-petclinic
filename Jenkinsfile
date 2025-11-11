@@ -10,7 +10,7 @@ pipeline {
         SONAR_HOST_URL = 'http://192.168.50.4:9000'
         SONAR_AUTH_TOKEN = credentials('sonar')  // token stocké dans Jenkins credentials
     }
-/////////////////////////
+
     stages {
 
         stage('Git Clone') {
@@ -49,6 +49,18 @@ pipeline {
             }
         }
 
+        stage('SonarQube Analysis') {
+            steps {
+                echo '🔍 Analyse du code avec SonarQube...'
+                sh """
+                    mvn sonar:sonar \
+                        -Dsonar.projectKey=spring-petclinic \
+                        -Dsonar.host.url=${SONAR_HOST_URL} \
+                        -Dsonar.login=${SONAR_AUTH_TOKEN}
+                """
+            }
+        }
+
         stage('Build Maven') {
             steps {
                 echo '⚙️ Compilation du projet...'
@@ -60,18 +72,6 @@ pipeline {
             steps {
                 echo '🧪 Exécution des tests unitaires...'
                 sh 'mvn test'
-            }
-        }
-
-        stage('SonarQube Analysis') {
-            steps {
-                echo '🔍 Analyse du code avec SonarQube...'
-                sh """
-                    mvn sonar:sonar \
-                        -Dsonar.projectKey=spring-petclinic \
-                        -Dsonar.host.url=${SONAR_HOST_URL} \
-                        -Dsonar.login=${SONAR_AUTH_TOKEN}
-                """
             }
         }
     }
