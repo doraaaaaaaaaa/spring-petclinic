@@ -4,7 +4,7 @@ FROM eclipse-temurin:25-jdk
 # Répertoire de travail
 WORKDIR /app
 
-# Copier le JAR généré par Maven
+# Copier le JAR généré par Maven (doit exister avant le build)
 COPY target/*.jar app.jar
 
 # Port de l’application

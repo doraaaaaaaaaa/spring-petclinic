@@ -27,6 +27,7 @@ pipeline {
                     docker run --rm -v $(pwd):/app -w /app maven:3.9.9-eclipse-temurin-21 \
                         mvn clean package -DskipTests
                 '''
+                echo "✅ Maven build terminé, le JAR doit être dans target/"
             }
         }
 
