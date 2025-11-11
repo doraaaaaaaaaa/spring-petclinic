@@ -78,6 +78,33 @@
       <scope>test</scope>
     </dependency>
 
+
+
+<dependency>
+        <groupId>jakarta.xml.bind</groupId>
+        <artifactId>jakarta.xml.bind-api</artifactId>
+        <version>4.0.2</version>
+    </dependency>
+
+    <!-- Implémentation de référence (runtime) -->
+    <dependency>
+        <groupId>org.glassfish.jaxb</groupId>
+        <artifactId>jaxb-runtime</artifactId>
+        <version>4.0.2</version>
+    </dependency>
+
+    <!-- Cache JSR-107 requis par CacheConfiguration -->
+    <dependency>
+        <groupId>javax.cache</groupId>
+        <artifactId>cache-api</artifactId>
+        <version>1.1.1</version>
+    </dependency>
+
+
+
+
+
+
     <!-- Databases - Uses H2 by default -->
     <dependency>
       <groupId>com.h2database</groupId>
