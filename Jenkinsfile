@@ -66,16 +66,18 @@ pipeline {
             }
         }
 
-        stage('Fix Permissions') {
-            steps {
-                echo '🔧 Correction des permissions sur target...'
-                sh '''
-                    mkdir -p target
-                    sudo chown -R jenkins:jenkins target
-                    chmod -R u+rwX target
-                '''
-            }
-        }
+       stage('Fix Permissions') {
+    steps {
+        echo '🔧 Correction des permissions sur target...'
+        sh '''
+            # Crée le dossier target si nécessaire
+            mkdir -p target
+            # Change les permissions pour que Jenkins puisse tout lire/écrire
+            chmod -R u+rwX target
+        '''
+    }
+}
+
 
         stage('Build Maven') {
             steps {
