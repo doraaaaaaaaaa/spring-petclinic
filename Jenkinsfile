@@ -1,127 +1,75 @@
 pipeline {
     agent any
 
+    tools {
+        maven 'M2_HOME'
+        jdk 'JAVA_HOME_21' // Jenkins utilise Java 21 pour sa compatibilité
+    }
+
     environment {
         SONAR_HOST_URL = 'http://192.168.50.4:9000'
         SONAR_AUTH_TOKEN = credentials('sonar')
         DOCKER_IMAGE = 'spring-petclinic:latest'
-        JAVA_DOCKER_IMAGE = 'eclipse-temurin:25-jdk'
     }
 
     stages {
-
-        stage('Git Clone') {
+        stage('Checkout') {
             steps {
-                echo '🔄 Clonage du dépôt Spring PetClinic...'
-                git branch: 'test/gitleaks-secret', url: 'https://github.com/doraaaaaaaaaa/spring-petclinic.git'
+                git branch: 'main',
+                    url: 'https://github.com/doraaaaaaaaaa/spring-petclinic.git'
             }
         }
 
-        stage('Debug Workspace') {
+        stage('Build Maven') {
             steps {
-                echo '🗂 Contenu du workspace :'
-                sh 'ls -R'
-            }
-        }
-
-        stage('Secret Scan - Gitleaks') {
-            steps {
-                echo "🔒 Scanning with Gitleaks..."
+                echo '⚙️ Build du projet avec Maven (Java 21)...'
                 sh '''
-                    REPORT=gitleaks-report.json
-                    docker run --rm -v $(pwd):/scan zricethezav/gitleaks:latest detect \
-                        --source=/scan \
-                        --report-path=/scan/$REPORT || true
+                    docker run --rm -v $(pwd):/app -w /app maven:3.9.9-eclipse-temurin-21 \
+                        mvn clean package -DskipTests
                 '''
             }
-            post {
-                always {
-                    archiveArtifacts artifacts: 'gitleaks-report.json', allowEmptyArchive: true
-                }
-            }
         }
 
-        stage('Trivy FS Scan') {
+        stage('SonarQube Analysis') {
             steps {
-                echo '🔍 Scanning source files with Trivy...'
+                echo '🔍 Analyse SonarQube...'
                 sh '''
-                    mkdir -p /tmp/trivy-cache
-                    docker run --rm -v $(pwd):/project -v /tmp/trivy-cache:/root/.cache/trivy aquasec/trivy fs \
-                        --exit-code 0 \
-                        --severity HIGH,CRITICAL \
-                        --format json \
-                        --output /project/trivy-report.json \
-                        /project
+                    docker run --rm -v $(pwd):/app -w /app \
+                        -e SONAR_HOST_URL=$SONAR_HOST_URL \
+                        -e SONAR_TOKEN=$SONAR_AUTH_TOKEN \
+                        maven:3.9.9-eclipse-temurin-21 \
+                        mvn sonar:sonar -Dsonar.projectKey=spring-petclinic
                 '''
             }
-            post {
-                always {
-                    archiveArtifacts artifacts: 'trivy-report.json', allowEmptyArchive: true
-                }
-            }
         }
 
-        stage('Build Maven (Java 25)') {
-            agent {
-                docker {
-                    image 'maven:3.9.9-eclipse-temurin-25'
-                    args '-v /root/.m2:/root/.m2'
-                }
-            }
+        stage('Build Docker Image') {
             steps {
-                echo '⚙️ Compilation du projet avec Maven (Java 25)...'
-                sh 'mvn clean package -DskipTests'
-            }
-            post {
-                success {
-                    archiveArtifacts artifacts: 'target/*.jar', allowEmptyArchive: false
-                }
-            }
-        }
-
-        stage('SonarQube Analysis (Java 25)') {
-            agent {
-                docker {
-                    image 'maven:3.9.9-eclipse-temurin-25'
-                    args '-v /root/.m2:/root/.m2'
-                }
-            }
-            steps {
-                echo '🔍 Analyse du code avec SonarQube...'
-                sh """
-                    mvn sonar:sonar \
-                        -Dsonar.projectKey=spring-petclinic \
-                        -Dsonar.host.url=${SONAR_HOST_URL} \
-                        -Dsonar.login=${SONAR_AUTH_TOKEN}
-                """
-            }
-        }
-
-        stage('Docker Build & Trivy Image Scan') {
-            steps {
-                echo '🐳 Build Docker image avec Java 25 et scan...'
+                echo '🐳 Construction de l’image Docker Java 25...'
                 sh '''
-                    docker build -t ${DOCKER_IMAGE} -f Dockerfile .
-                    mkdir -p /tmp/trivy-cache
-                    docker run --rm -v /tmp/trivy-cache:/root/.cache/trivy aquasec/trivy image \
-                        --exit-code 0 \
-                        --severity HIGH,CRITICAL \
-                        --format json \
-                        --output trivy-image-report.json \
-                        ${DOCKER_IMAGE}
+                    docker build -t $DOCKER_IMAGE .
                 '''
             }
-            post {
-                always {
-                    archiveArtifacts artifacts: 'trivy-image-report.json', allowEmptyArchive: true
-                }
+        }
+
+        stage('Run Container') {
+            steps {
+                echo '🚀 Lancement du conteneur...'
+                sh '''
+                    docker stop spring-petclinic || true
+                    docker rm spring-petclinic || true
+                    docker run -d --name spring-petclinic -p 8080:8080 $DOCKER_IMAGE
+                '''
             }
         }
     }
 
     post {
-        always {
-            echo "🏁 Pipeline terminé 🚀"
+        success {
+            echo '✅ Pipeline terminé avec succès !'
+        }
+        failure {
+            echo '❌ Échec du pipeline.'
         }
     }
 }
