@@ -8,7 +8,7 @@ pipeline {
 
     environment {
         SONAR_HOST_URL = 'http://192.168.50.4:9000'
-        SONAR_AUTH_TOKEN = credentials('sonar') // token stocké dans Jenkins credentials
+        SONAR_AUTH_TOKEN = credentials('sonar')
     }
 
     stages {
@@ -24,7 +24,6 @@ pipeline {
             steps {
                 echo '🔒 Running Gitleaks Secret Scan...'
                 sh '''
-                    # Crée un dossier temporaire pour le scan
                     mkdir -p jenkins_temp_scan
                     cd jenkins_temp_scan
                     gitleaks detect \
@@ -42,41 +41,31 @@ pipeline {
             }
         }
 
-        stage('Prepare Sonar') {
-            steps {
-                echo '🧹 Préparation du dossier pour SonarQube...'
-                sh '''
-                    mkdir -p sonar_temp
-                '''
-            }
-        }
-
-        stage('SonarQube Analysis') {
-            steps {
-                echo '🔍 Analyse du code avec SonarQube...'
-                // On utilise mvn sonar:sonar sans clean pour ne pas toucher à target
-                sh """
-                    mvn sonar:sonar \
-                        -Dsonar.projectKey=spring-petclinic \
-                        -Dsonar.host.url=${SONAR_HOST_URL} \
-                        -Dsonar.login=${SONAR_AUTH_TOKEN} \
-                        -Dsonar.java.binaries=target/classes
-                """
-            }
-        }
-
         stage('Prepare Build') {
             steps {
                 echo '🧹 Préparation du build dans un dossier temporaire...'
-                sh 'mkdir -p build_target'
+                sh '''
+                    mkdir -p build_target
+                '''
             }
         }
 
         stage('Build Maven') {
             steps {
                 echo '⚙️ Compilation du projet...'
-                // On supprime "clean" pour ne pas supprimer target
-                sh 'mvn -f pom.xml package -DskipTests=true -DoutputDirectory=build_target'
+                sh 'mvn -f pom.xml clean package -DskipTests=true -DoutputDirectory=build_target'
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                echo '🔍 Analyse du code avec SonarQube...'
+                sh """
+                    mvn sonar:sonar \
+                        -Dsonar.projectKey=spring-petclinic \
+                        -Dsonar.host.url=${SONAR_HOST_URL} \
+                        -Dsonar.login=${SONAR_AUTH_TOKEN}
+                """
             }
         }
 
