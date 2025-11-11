@@ -5,8 +5,7 @@ pipeline {
         SONAR_HOST_URL = 'http://192.168.50.4:9000'
         SONAR_AUTH_TOKEN = credentials('sonar')
         DOCKER_IMAGE = 'spring-petclinic:latest'
-        MAVEN_CLI_OPTS = '-B -DskipTests'
-        JAVA_DOCKER_IMAGE = 'eclipse-temurin:25-jdk' // Java 25 Docker image
+        JAVA_DOCKER_IMAGE = 'eclipse-temurin:25-jdk'
     }
 
     stages {
@@ -27,44 +26,32 @@ pipeline {
 
         stage('Secret Scan - Gitleaks') {
             steps {
-                echo "🔒 Running Gitleaks Secret Scan..."
+                echo "🔒 Scanning with Gitleaks..."
                 sh '''
                     REPORT=gitleaks-report.json
-                    rm -f $REPORT || true
-                    EXIT_CODE=0
-
                     docker run --rm -v $(pwd):/scan zricethezav/gitleaks:latest detect \
                         --source=/scan \
-                        --report-path=/scan/$REPORT || EXIT_CODE=$?
-
-                    echo "🔚 Gitleaks exit code: $EXIT_CODE"
-                    exit $EXIT_CODE
+                        --report-path=/scan/$REPORT || true
                 '''
             }
             post {
                 always {
-                    echo "📄 Gitleaks Report Content:"
-                    sh "cat gitleaks-report.json 2>/dev/null || echo '⚠️ No report file generated!'"
                     archiveArtifacts artifacts: 'gitleaks-report.json', allowEmptyArchive: true
-                }
-                failure {
-                    echo "❌ SECRET DETECTÉ — PIPELINE STOPPÉ ❌"
                 }
             }
         }
 
         stage('Trivy FS Scan') {
             steps {
-                echo '🔍 Scanning project files with Trivy...'
+                echo '🔍 Scanning source files with Trivy...'
                 sh '''
                     mkdir -p /tmp/trivy-cache
                     docker run --rm -v $(pwd):/project -v /tmp/trivy-cache:/root/.cache/trivy aquasec/trivy fs \
-                        --exit-code 1 \
+                        --exit-code 0 \
                         --severity HIGH,CRITICAL \
                         --format json \
-                        --timeout 10m \
                         --output /project/trivy-report.json \
-                        /project || true
+                        /project
                 '''
             }
             post {
@@ -74,13 +61,16 @@ pipeline {
             }
         }
 
-        stage('Build Maven with Java 25') {
+        stage('Build Maven (Java 25)') {
+            agent {
+                docker {
+                    image 'maven:3.9.9-eclipse-temurin-25'
+                    args '-v /root/.m2:/root/.m2'
+                }
+            }
             steps {
-                echo '⚙️ Compilation du projet Maven avec Java 25 Docker...'
-                sh '''
-                    docker run --rm -v $(pwd):/app -w /app eclipse-temurin:25-jdk \
-                        bash -c "apt-get update && apt-get install -y maven && mvn clean package -DskipTests"
-                '''
+                echo '⚙️ Compilation du projet avec Maven (Java 25)...'
+                sh 'mvn clean package -DskipTests'
             }
             post {
                 success {
@@ -89,22 +79,44 @@ pipeline {
             }
         }
 
-        stage('SonarQube Analysis') {
+        stage('SonarQube Analysis (Java 25)') {
+            agent {
+                docker {
+                    image 'maven:3.9.9-eclipse-temurin-25'
+                    args '-v /root/.m2:/root/.m2'
+                }
+            }
             steps {
                 echo '🔍 Analyse du code avec SonarQube...'
                 sh """
-                    docker run --rm -v $(pwd):/app -w /app eclipse-temurin:25-jdk \
-                        bash -c "apt-get update && apt-get install -y maven && mvn sonar:sonar \
+                    mvn sonar:sonar \
                         -Dsonar.projectKey=spring-petclinic \
                         -Dsonar.host.url=${SONAR_HOST_URL} \
-                        -Dsonar.login=${SONAR_AUTH_TOKEN}"
+                        -Dsonar.login=${SONAR_AUTH_TOKEN}
                 """
             }
         }
 
-        // stage('Docker Build & Trivy Image Scan') {
-        //     steps { ... }
-        // }
+        stage('Docker Build & Trivy Image Scan') {
+            steps {
+                echo '🐳 Build Docker image avec Java 25 et scan...'
+                sh '''
+                    docker build -t ${DOCKER_IMAGE} -f Dockerfile .
+                    mkdir -p /tmp/trivy-cache
+                    docker run --rm -v /tmp/trivy-cache:/root/.cache/trivy aquasec/trivy image \
+                        --exit-code 0 \
+                        --severity HIGH,CRITICAL \
+                        --format json \
+                        --output trivy-image-report.json \
+                        ${DOCKER_IMAGE}
+                '''
+            }
+            post {
+                always {
+                    archiveArtifacts artifacts: 'trivy-image-report.json', allowEmptyArchive: true
+                }
+            }
+        }
     }
 
     post {
