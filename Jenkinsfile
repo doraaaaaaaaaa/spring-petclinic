@@ -51,7 +51,10 @@ pipeline {
         stage('Prepare Sonar') {
             steps {
                 echo '🧹 Préparation du dossier pour SonarQube...'
-                sh 'mkdir -p target/sonar && sudo chown -R jenkins:jenkins target'
+                sh '''
+                    mkdir -p $WORKSPACE/.sonar
+                    echo "Dossier .sonar prêt : $WORKSPACE/.sonar"
+                '''
             }
         }
 
@@ -83,7 +86,6 @@ pipeline {
                 sh 'mvn test'
             }
         }
-
     }
 
     post {
