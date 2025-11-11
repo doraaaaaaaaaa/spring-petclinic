@@ -38,13 +38,6 @@ pipeline {
                 always {
                     archiveArtifacts artifacts: 'gitleaks-report.json', allowEmptyArchive: true
                 }
-                success {
-                    echo "✅ Aucun secret détecté — OK ! ✅"
-                }
-                failure {
-                    echo "❌ Secret détecté — Pipeline échoué ❌"
-                    error("❌ Pipeline arrêté à cause d'un secret détecté ❌")
-                }
             }
         }
 
@@ -70,6 +63,17 @@ pipeline {
                             -Dsonar.working.directory=$WORKSPACE/.sonar
                     """
                 }
+            }
+        }
+
+        stage('Fix Permissions') {
+            steps {
+                echo '🔧 Correction des permissions sur target...'
+                sh '''
+                    mkdir -p target
+                    sudo chown -R jenkins:jenkins target
+                    chmod -R u+rwX target
+                '''
             }
         }
 
