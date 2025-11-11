@@ -1,76 +1,84 @@
 pipeline {
     agent any
 
-    tools {
+    tools { 
         maven 'M2_HOME'
-        jdk 'JAVA_HOME_21' // Jenkins utilise Java 21 pour sa compatibilité
+        jdk 'JAVA_HOME'
     }
 
     environment {
         SONAR_HOST_URL = 'http://192.168.50.4:9000'
-        SONAR_AUTH_TOKEN = credentials('sonar')
-        DOCKER_IMAGE = 'spring-petclinic:latest'
+        SONAR_AUTH_TOKEN = credentials('sonar')  // token stocké dans Jenkins credentials
     }
 
     stages {
-        stage('Checkout') {
+
+        stage('Git Clone') {
             steps {
-                git branch: 'main',
-                    url: 'https://github.com/doraaaaaaaaaa/spring-petclinic.git'
+                echo '🔄 Clonage du dépôt Spring PetClinic...'
+                git branch: 'test-gitleaks', url: 'https://github.com/doraaaaaaaaaa/spring-petclinic.git'
+            }
+        }
+
+        stage('Secret Scan') {
+            steps {
+                echo '🔒 Running Gitleaks Secret Scan...'
+                sh '''
+                    echo "📁 Contenu du projet :"
+                    ls -la
+                    echo "🚨 Début scan Gitleaks"
+                    gitleaks detect \
+                        --source . \
+                        --no-banner \
+                        --exit-code=1 \
+                        --report-path gitleaks-report.json \
+                        -v
+                '''
+            }
+            post {
+                always {
+                    archiveArtifacts artifacts: 'gitleaks-report.json', allowEmptyArchive: true
+                }
+                success {
+                    echo "✅ Aucun secret détecté — OK ! ✅"
+                }
+                failure {
+                    echo "❌ Secret détecté — Pipeline échoué ❌"
+                    error("❌ Pipeline arrêté à cause d'un secret détecté ❌")
+                }
             }
         }
 
         stage('Build Maven') {
             steps {
-                echo '⚙️ Build du projet avec Maven (Java 21)...'
-                sh '''
-                    docker run --rm -v $(pwd):/app -w /app maven:3.9.9-eclipse-temurin-21 \
-                        mvn clean package -DskipTests
-                '''
-                echo "✅ Maven build terminé, le JAR doit être dans target/"
+                echo '⚙️ Compilation du projet...'
+                sh 'mvn clean package -DskipTests=true'
+            }
+        }
+
+        stage('Run Tests') {
+            steps {
+                echo '🧪 Exécution des tests unitaires...'
+                sh 'mvn test'
             }
         }
 
         stage('SonarQube Analysis') {
             steps {
-                echo '🔍 Analyse SonarQube...'
-                sh '''
-                    docker run --rm -v $(pwd):/app -w /app \
-                        -e SONAR_HOST_URL=$SONAR_HOST_URL \
-                        -e SONAR_TOKEN=$SONAR_AUTH_TOKEN \
-                        maven:3.9.9-eclipse-temurin-21 \
-                        mvn sonar:sonar -Dsonar.projectKey=spring-petclinic
-                '''
-            }
-        }
-
-        stage('Build Docker Image') {
-            steps {
-                echo '🐳 Construction de l’image Docker Java 25...'
-                sh '''
-                    docker build -t $DOCKER_IMAGE .
-                '''
-            }
-        }
-
-        stage('Run Container') {
-            steps {
-                echo '🚀 Lancement du conteneur...'
-                sh '''
-                    docker stop spring-petclinic || true
-                    docker rm spring-petclinic || true
-                    docker run -d --name spring-petclinic -p 8080:8080 $DOCKER_IMAGE
-                '''
+                echo '🔍 Analyse du code avec SonarQube...'
+                sh """
+                    mvn sonar:sonar \
+                        -Dsonar.projectKey=spring-petclinic \
+                        -Dsonar.host.url=${SONAR_HOST_URL} \
+                        -Dsonar.login=${SONAR_AUTH_TOKEN}
+                """
             }
         }
     }
 
     post {
-        success {
-            echo '✅ Pipeline terminé avec succès !'
-        }
-        failure {
-            echo '❌ Échec du pipeline.'
+        always {
+            echo "🏁 Pipeline terminé"
         }
     }
 }
