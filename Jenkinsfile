@@ -8,7 +8,6 @@ pipeline {
 
     environment {
         SONAR_HOST_URL = 'http://192.168.50.4:9000'
-        SONAR_AUTH_TOKEN = credentials('sonar')
     }
 
     stages {
@@ -24,13 +23,14 @@ pipeline {
             steps {
                 echo '🔒 Running Gitleaks Secret Scan...'
                 sh '''
-                    mkdir -p jenkins_temp_scan
-                    cd jenkins_temp_scan
+                    echo "📁 Contenu du projet :"
+                    ls -la
+                    echo "🚨 Début scan Gitleaks"
                     gitleaks detect \
-                        --source ../ \
+                        --source . \
                         --no-banner \
                         --exit-code=1 \
-                        --report-path ../gitleaks-report.json \
+                        --report-path gitleaks-report.json \
                         -v
                 '''
             }
@@ -41,31 +41,48 @@ pipeline {
             }
         }
 
-        stage('Prepare Build') {
+        stage('Prepare Sonar') {
             steps {
-                echo '🧹 Préparation du build dans un dossier temporaire...'
+                echo '🧹 Préparation du dossier pour SonarQube...'
                 sh '''
-                    mkdir -p build_target
+                    mkdir -p $WORKSPACE/.sonar
+                    echo "Dossier .sonar prêt : $WORKSPACE/.sonar"
                 '''
-            }
-        }
-
-        stage('Build Maven') {
-            steps {
-                echo '⚙️ Compilation du projet...'
-                sh 'mvn -f pom.xml clean package -DskipTests=true -DoutputDirectory=build_target'
             }
         }
 
         stage('SonarQube Analysis') {
             steps {
                 echo '🔍 Analyse du code avec SonarQube...'
-                sh """
-                    mvn sonar:sonar \
-                        -Dsonar.projectKey=spring-petclinic \
-                        -Dsonar.host.url=${SONAR_HOST_URL} \
-                        -Dsonar.login=${SONAR_AUTH_TOKEN}
-                """
+                withCredentials([string(credentialsId: 'sonar', variable: 'SONAR_AUTH_TOKEN')]) {
+                    sh """
+                        mvn sonar:sonar \
+                            -Dsonar.projectKey=spring-petclinic \
+                            -Dsonar.host.url=${SONAR_HOST_URL} \
+                            -Dsonar.login=$SONAR_AUTH_TOKEN \
+                            -Dsonar.working.directory=$WORKSPACE/.sonar
+                    """
+                }
+            }
+        }
+
+       stage('Fix Permissions') {
+    steps {
+        echo '🔧 Correction des permissions sur target...'
+        sh '''
+            # Crée le dossier target si nécessaire
+            mkdir -p target
+            # Change les permissions pour que Jenkins puisse tout lire/écrire
+            chmod -R u+rwX target
+        '''
+    }
+}
+
+
+        stage('Build Maven') {
+            steps {
+                echo '⚙️ Compilation du projet...'
+                sh 'mvn clean package -DskipTests=true'
             }
         }
 
