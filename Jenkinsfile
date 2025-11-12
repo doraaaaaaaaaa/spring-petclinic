@@ -21,33 +21,20 @@ pipeline {
 
        
         stage('Secret Scan') {
-            steps {
-                echo '🔒 Running Gitleaks Secret Scan...'
-                sh '''
-                    echo "📁 Contenu du projet :"
-                    ls -la
-                    echo "🚨 Début scan Gitleaks"
-                    gitleaks detect \
-                        --source . \
-                        --no-banner \
-                        --exit-code=1 \
-                        --report-path gitleaks-report.json \
-                        -v
-                '''
-            }
-            post {
-                always {
-                    archiveArtifacts artifacts: 'gitleaks-report.json', allowEmptyArchive: true
-                }
-                success {
-                    echo "✅ Aucun secret détecté — OK ! ✅"
-                }
-                failure {
-                    echo "❌ Secret détecté — Pipeline échoué ❌"
-                    error("❌ Pipeline arrêté à cause d'un secret détecté ❌")
-                }
+    steps {
+        script {
+            echo "🔍 Running Gitleaks secret scan..."
+            // Exécuter Gitleaks
+            def status = sh(script: "gitleaks detect --source . --no-banner --exit-code=1 --report-path=gitleaks-report.json -v", returnStatus: true)
+            
+            if (status != 0) {
+                error("❌ Secrets detected by Gitleaks! Check gitleaks-report.json for details.")
+            } else {
+                echo "✅ No secrets found by Gitleaks."
             }
         }
+    }
+}
 
         stage('Prepare Sonar') {
             steps {
