@@ -67,6 +67,40 @@ stage('Secret Scan') {
             }
         }
 
+
+
+        stage('Trivy Scan') {
+            steps {
+                echo '🔎 Scan de sécurité complet du projet avec Trivy...'
+                sh '''
+                    set -e
+                    echo "📁 Démarrage du scan Trivy (config + dépendances + secrets)..."
+
+                    # Lancer le scan Trivy sur tout le projet
+                    trivy fs . \
+                        --scanners vuln,config,secret \
+                        --severity HIGH,CRITICAL \
+                        --ignore-unfixed \
+                        --no-progress \
+                        --format json \
+                        --output trivy-full-report.json
+
+                    echo "✅ Scan terminé. Rapport généré : trivy-full-report.json"
+                '''
+            }
+            post {
+                always {
+                    echo '📦 Archivage du rapport Trivy...'
+                    archiveArtifacts artifacts: 'trivy-full-report.json', allowEmptyArchive: true
+                }
+                failure {
+                    echo '❌ Des vulnérabilités critiques ou des secrets ont été détectés par Trivy !'
+                }
+            }
+        }
+
+
+
         stage('Fix Permissions') {
             steps {
                 echo '🔧 Correction des permissions sur le dossier target...'
