@@ -19,17 +19,19 @@ pipeline {
             }
         }
 
+       
         stage('Secret Scan') {
             steps {
                 echo '🔒 Running Gitleaks Secret Scan...'
                 sh '''
-                    mkdir -p jenkins_temp_scan
-                    cd jenkins_temp_scan
+                    echo "📁 Contenu du projet :"
+                    ls -la
+                    echo "🚨 Début scan Gitleaks"
                     gitleaks detect \
-                        --source ../ \
+                        --source . \
                         --no-banner \
                         --exit-code=1 \
-                        --report-path ../gitleaks-report.json \
+                        --report-path gitleaks-report.json \
                         -v
                 '''
             }
@@ -37,13 +39,23 @@ pipeline {
                 always {
                     archiveArtifacts artifacts: 'gitleaks-report.json', allowEmptyArchive: true
                 }
+                success {
+                    echo "✅ Aucun secret détecté — OK ! ✅"
+                }
+                failure {
+                    echo "❌ Secret détecté — Pipeline échoué ❌"
+                    error("❌ Pipeline arrêté à cause d'un secret détecté ❌")
+                }
             }
         }
 
         stage('Prepare Sonar') {
             steps {
                 echo '🧹 Préparation du dossier pour SonarQube...'
-                sh 'mkdir -p $WORKSPACE/.sonar'
+                sh '''
+                    mkdir -p $WORKSPACE/.sonar
+                    echo "Dossier .sonar prêt : $WORKSPACE/.sonar"
+                '''
             }
         }
 
@@ -62,11 +74,20 @@ pipeline {
             }
         }
 
+        stage('Fix Permissions') {
+            steps {
+                echo '🔧 Correction des permissions sur le dossier target...'
+                sh '''
+                    mkdir -p target
+                    chmod -R u+rwX target
+                '''
+            }
+        }
+
         stage('Build Maven') {
             steps {
-                echo '⚙️ Compilation du projet...'
-                // On build sans clean pour ne pas supprimer target existant
-                sh 'mvn package -DskipTests=true'
+                echo '⚙️ Compilation du projet Maven...'
+                sh 'mvn clean package -DskipTests=true'
             }
         }
 
@@ -79,8 +100,14 @@ pipeline {
     }
 
     post {
+        success {
+            echo "✅ Pipeline exécuté avec succès sans fuites de secrets."
+        }
+        failure {
+            echo "🚨 Le pipeline a échoué — vérifie le rapport Gitleaks ou les logs Sonar/Maven."
+        }
         always {
-            echo "🏁 Pipeline terminé"
+            echo "🏁 Pipeline terminé."
         }
     }
 }
