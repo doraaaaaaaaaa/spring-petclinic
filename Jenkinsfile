@@ -33,7 +33,7 @@ stage('Secret Scan') {
             if (status != 0) {
                 echo "❌ Secrets detected in the latest commit! Check gitleaks-report.json for details."
                 // Pour ne pas arrêter le pipeline, on commente la ligne error()
-                // error("❌ Secrets detected by Gitleaks!")
+                 error("❌ Secrets detected by Gitleaks!")
             } else {
                 echo "✅ No secrets found in the latest commit."
             }
