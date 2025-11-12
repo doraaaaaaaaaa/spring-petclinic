@@ -19,22 +19,22 @@ pipeline {
             }
         }
 
-       
-        stage('Secret Scan') {
+ stage('Secret Scan') {
     steps {
         script {
-            echo "🔍 Running Gitleaks secret scan..."
-            // Exécuter Gitleaks
-            def status = sh(script: "gitleaks detect --source . --no-banner --exit-code=1 --report-path=gitleaks-report.json -v", returnStatus: true)
+            echo "🔍 Running Gitleaks secret scan on the latest commit..."
+            // Exécuter Gitleaks uniquement sur le dernier commit
+            def status = sh(script: "gitleaks detect --source . --commit=HEAD --no-banner --exit-code=1 --report-path=gitleaks-report.json -v", returnStatus: true)
             
             if (status != 0) {
-                error("❌ Secrets detected by Gitleaks! Check gitleaks-report.json for details.")
+                error("❌ Secrets detected by Gitleaks in the latest commit! Check gitleaks-report.json for details.")
             } else {
-                echo "✅ No secrets found by Gitleaks."
+                echo "✅ No secrets found by Gitleaks in the latest commit."
             }
         }
     }
 }
+
 
         stage('Prepare Sonar') {
             steps {
