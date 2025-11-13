@@ -67,7 +67,7 @@ stage('Secret Scan') {
             }
         }
 
-
+////trivy stage
 
         stage('Trivy Scan') {
             steps {
