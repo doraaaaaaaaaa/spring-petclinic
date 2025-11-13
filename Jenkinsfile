@@ -55,7 +55,7 @@ stage('Secret Scan') {
         stage('SonarQube Analysis') {
             steps {
                 echo '🔍 Analyse du code avec SonarQube...'
-                withCredentials([string(credentialsId: 'sonar', variable: 'SONAR_AUTH_TOKEN')]) {
+                withCredentials([string(credentialsId: 'SONAR_AUTH_TOKEN', variable: 'SONAR_AUTH_TOKEN')]) {
                     sh """
                         mvn sonar:sonar \
                             -Dsonar.projectKey=spring-petclinic \
