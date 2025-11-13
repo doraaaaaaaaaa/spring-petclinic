@@ -101,7 +101,6 @@ stage('Secret Scan') {
         }
 
 
-
         stage('Fix Permissions') {
             steps {
                 echo '🔧 Correction des permissions sur le dossier target...'
