@@ -25,7 +25,7 @@ stage('Secret Scan') {
         script {
             echo "🔍 Running Gitleaks secret scan on the latest commit only..."
             
-            // Supprime l'ancien rapport pour éviter faux positif
+            // Supprime l'ancien rapport pour éviter faux positif..........
             sh 'rm -f gitleaks-report.json'
 
             // Scanner uniquement le dernier commit
